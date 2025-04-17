@@ -30,7 +30,7 @@ i {
   margin-top: 10rem;
 }
 
-.navbar {
+.list-container {
   display: flex;
   align-items: center;
   justify-content: space-between;
