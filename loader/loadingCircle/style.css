@@ -21,7 +21,7 @@ body {
 }
 
 .loader {
-  width: fix-content;
+  width: fit-content;
   font-weight: bold;
   font-family: 'Montserrat', sans-serif;
   font-size: 30px;
