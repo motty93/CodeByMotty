@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web Share API対応 共有ボタン (PC/スマホ切替)</title>
+
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        min-height: 150vh;
+        background-color: #f4f4f4;
+        padding: 20px;
+      }
+
+      #main-share-btn {
+        font-size: 18px;
+        padding: 12px 20px;
+        border: none;
+        background-color: #007bff;
+        color: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      #main-share-btn:hover {
+        background-color: #0056b3;
+      }
+
+      .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 100;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .modal-content {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.95);
+        background: #fff;
+        padding: 30px;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 400px;
+        z-index: 101;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        opacity: 0;
+        transition:
+          opacity 0.3s ease,
+          transform 0.3s ease;
+      }
+
+      .modal-content h2 {
+        text-align: center;
+        margin-top: 0;
+        margin-bottom: 25px;
+        color: #333;
+      }
+
+      body.modal-open {
+        overflow: hidden;
+      }
+      body.modal-open .modal-overlay {
+        display: block;
+        opacity: 1;
+      }
+      body.modal-open .modal-content {
+        display: block;
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+
+      .modal-close-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 30px;
+        height: 30px;
+        line-height: 30px;
+        text-align: center;
+        font-size: 24px;
+        font-weight: bold;
+        color: #aaa;
+        background: #f1f1f1;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        transition:
+          background-color 0.2s,
+          color 0.2s;
+      }
+      .modal-close-btn:hover {
+        background: #e0e0e0;
+        color: #333;
+      }
+
+      .share-links {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .share-links li {
+        margin-bottom: 12px;
+      }
+
+      .share-links a,
+      .share-links button {
+        display: block;
+        width: 100%;
+        padding: 14px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 16px;
+        text-align: center;
+        box-sizing: border-box;
+        cursor: pointer;
+        border: none;
+        color: #ffffff;
+        transition:
+          filter 0.2s ease,
+          transform 0.2s ease;
+      }
+
+      .share-links a:hover,
+      .share-links button:hover {
+        filter: brightness(0.9);
+        transform: scale(1.02);
+      }
+
+      .share-links a:active,
+      .share-links button:active {
+        transform: scale(0.98);
+      }
+
+      .share-link-x {
+        background-color: #000000;
+      }
+      .share-link-facebook {
+        background-color: #1877f2;
+      }
+      .share-link-bluesky {
+        background-color: #0070ff;
+      }
+      .share-link-discord {
+        background-color: #5865f2;
+      }
+
+      .url-copy-area {
+        margin-top: 25px;
+        display: flex;
+      }
+      .url-copy-area input[type="text"] {
+        flex-grow: 1;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-right: none;
+        border-radius: 8px 0 0 8px;
+        background: #f9f9f9;
+        font-size: 14px;
+        color: #555;
+        outline: none;
+      }
+      .url-copy-area input[type="text"]:focus {
+        border-color: #007bff;
+      }
+
+      .url-copy-area button {
+        padding: 10px 16px;
+        border: 1px solid #007bff;
+        background: #007bff;
+        color: white;
+        font-weight: bold;
+        border-radius: 0 8px 8px 0;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      .url-copy-area button:hover {
+        background: #0056b3;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Web Share API対応 サンプルページ</h1>
+    <p>このページを共有します。</p>
+    <p>（PCでは自作モーダル、スマホではOS共有が表示されます）</p>
+
+    <button id="main-share-btn">この記事を共有する 📱💻</button>
+
+    <div id="share-modal-overlay" class="modal-overlay"></div>
+    <div id="share-modal-content" class="modal-content">
+      <button id="modal-close-btn" class="modal-close-btn">&times;</button>
+      <h2>共有する</h2>
+      <ul class="share-links">
+        <li>
+          <a
+            id="share-link-x"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="share-link-x"
+            >Xで共有</a
+          >
+        </li>
+        <li>
+          <a
+            id="share-link-facebook"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="share-link-facebook"
+            >Facebookで共有</a
+          >
+        </li>
+        <li>
+          <a
+            id="share-link-bluesky"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="share-link-bluesky"
+            >Blueskyで共有</a
+          >
+        </li>
+        <li>
+          <button id="share-link-discord" class="share-link-discord">
+            Discordで共有 (コピー)
+          </button>
+        </li>
+      </ul>
+      <div class="url-copy-area">
+        <input
+          type="text"
+          id="share-url-input"
+          readonly
+          value="読み込み中..."
+        />
+        <button id="copy-url-btn">コピー</button>
+      </div>
+    </div>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        // --- 1. 要素の取得 ---
+        const mainShareBtn = document.getElementById("main-share-btn");
+        const body = document.body;
+        const modalOverlay = document.getElementById("share-modal-overlay");
+        const modalCloseBtn = document.getElementById("modal-close-btn");
+        const shareLinkX = document.getElementById("share-link-x");
+        const shareLinkFacebook = document.getElementById(
+          "share-link-facebook",
+        );
+        const shareLinkBluesky = document.getElementById("share-link-bluesky");
+        const shareLinkDiscord = document.getElementById("share-link-discord");
+        const urlInput = document.getElementById("share-url-input");
+        const copyUrlBtn = document.getElementById("copy-url-btn");
+
+        // --- 2. 共有するデータ ---
+        const shareData = {
+          title: document.title,
+          text: `「${document.title}」をチェック！`,
+          url: location.href,
+        };
+
+        // --- ★★★ 簡易的なスマホ判定関数 ★★★ ---
+        function isMobile() {
+          // UserAgentを小文字にして判定
+          const ua = navigator.userAgent.toLowerCase();
+          return /iphone|ipod|ipad|android/.test(ua);
+        }
+
+        // --- 3. メインの共有ボタンがクリックされた時の処理 ---
+        mainShareBtn.addEventListener("click", async () => {
+          // 1. 「スマホ」かつ「Web Share APIが使える」か判定
+          if (isMobile() && navigator.share) {
+            // --- 【A】スマホの場合 ---
+            console.log("スマホなので Web Share API を使用します");
+            try {
+              await navigator.share(shareData);
+              console.log("共有に成功しました");
+            } catch (err) {
+              console.warn("共有がキャンセルまたは失敗しました:", err.message);
+            }
+          } else {
+            // --- 【B】PCの場合 (または非対応スマホ) ---
+            console.log(
+              "PCまたは非対応ブラウザのため、自作モーダルを表示します",
+            );
+            openPcModal();
+          }
+        });
+
+        // --- 4. PC用モーダルを開く関数 ---
+        function openPcModal() {
+          const encodedUrl = encodeURIComponent(shareData.url);
+          const encodedTitle = encodeURIComponent(shareData.title);
+
+          shareLinkX.href = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`;
+          shareLinkFacebook.href = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+          shareLinkBluesky.href = `https://bsky.app/intent/compose?text=${encodedTitle}%20${encodedUrl}`;
+
+          urlInput.value = shareData.url;
+          body.classList.add("modal-open");
+        }
+
+        // --- 5. PC用モーダルを閉じる関数 ---
+        function closePcModal() {
+          body.classList.remove("modal-open");
+        }
+
+        modalCloseBtn.addEventListener("click", closePcModal);
+        modalOverlay.addEventListener("click", closePcModal);
+
+        // --- 6. PC用モーダルのコピー機能 ---
+        shareLinkDiscord.addEventListener("click", () => {
+          const textToCopy = `${shareData.title} ${shareData.url}`;
+          navigator.clipboard
+            .writeText(textToCopy)
+            .then(() => {
+              alert("Discord用にタイトルとURLをコピーしました！");
+            })
+            .catch((err) => {
+              console.error("コピー失敗:", err);
+              alert("コピーに失敗しました。");
+            });
+        });
+
+        copyUrlBtn.addEventListener("click", () => {
+          navigator.clipboard
+            .writeText(shareData.url)
+            .then(() => {
+              alert("URLをコピーしました！");
+            })
+            .catch((err) => {
+              console.error("コピー失敗:", err);
+              alert("コピーに失敗しました。");
+            });
+        });
+      });
+    </script>
+  </body>
+</html>
